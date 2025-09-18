@@ -1,192 +1,137 @@
-import "./App.css";
-import { useState } from "react";
-
-type Resource = "Wood" | "Brick" | "Sheep" | "Wheat" | "Ore";
-
-type Settlement = {
-  id: string;
-  numbers: number[];
-  resources: Resource[];
-};
+import './App.css';
+import { useState, useEffect } from 'react';
+import SettlementsList from './components/SettlementsList';
+import type { Resource, Settlement } from './types';
+import SettlementBuilder from './components/SettlementBuilder';
+import RobberPosition from './components/RobberPosition';
+import InitialResourcesModal from './components/InitialResourcesModal';
+import StatsModal from './components/StatsModal';
 
 export default function App() {
-  const [settlements, setSettlements] = useState<Settlement[]>([]);
-  const [selectedNumbers, setSelectedNumbers] = useState<number[]>([]);
-  const [selectedResources, setSelectedResources] = useState<Resource[]>([]);
-  const [dice, setDice] = useState<number | null>(null);
-  const [showBuilder, setShowBuilder] = useState(true);
+	const [settlements, setSettlements] = useState<Settlement[]>([]);
+	const [robberHex, setRobberHex] = useState<{ number: number; resource: Resource } | null>(null);
+	const [showRobber, setShowRobber] = useState(false);
+	const [dice, setDice] = useState<number | null>(null);
+	const [initialPopupShown, setInitialPopupShown] = useState(false);
+	const [showInitialModal, setShowInitialModal] = useState(false);
+	const [showStats, setShowStats] = useState(false);
+	const [diceHistory, setDiceHistory] = useState<number[]>([]);
+	const [initialResources, setInitialResources] = useState<Record<Resource, number>>({
+		Wood: 0,
+		Brick: 0,
+		Sheep: 0,
+		Wheat: 0,
+		Rock: 0,
+	});
 
-  const toggleNumber = (n: number) => {
-    setSelectedNumbers((prev) =>
-      prev.includes(n) ? prev.filter((x) => x !== n) : [...prev, n]
-    );
-  };
+	const removeSettlement = (id: string) => {
+		setSettlements(settlements.filter((s) => s.id !== id));
+	};
 
-  const toggleResource = (r: Resource) => {
-    setSelectedResources((prev) =>
-      prev.includes(r) ? prev.filter((x) => x !== r) : [...prev, r]
-    );
-  };
+	const toggleUpgrade = (id: string) => {
+		setSettlements(settlements.map((s) => (s.id === id ? { ...s, multiplier: s.multiplier === 1 ? 2 : 1 } : s)));
+	};
 
-  const addSettlement = () => {
-    if (selectedNumbers.length && selectedResources.length) {
-      setSettlements([
-        ...settlements,
-        {
-          id: crypto.randomUUID(),
-          numbers: selectedNumbers,
-          resources: selectedResources,
-        },
-      ]);
-      setSelectedNumbers([]);
-      setSelectedResources([]);
-    }
-  };
+	const getResults = () => {
+		if (!dice) return {};
+		const collected: Record<Resource, number> = {
+			Wood: 0,
+			Brick: 0,
+			Sheep: 0,
+			Wheat: 0,
+			Rock: 0,
+		};
 
-  const getResults = () => {
-    if (!dice) return {};
-    const collected: Record<Resource, number> = {
-      Wood: 0,
-      Brick: 0,
-      Sheep: 0,
-      Wheat: 0,
-      Ore: 0,
-    };
+		settlements.forEach((s) => {
+			s.hexes.forEach((h) => {
+				if (robberHex && robberHex.number === h.number && robberHex.resource === h.resource) return;
+				if (h.number === dice) collected[h.resource] += s.multiplier;
+			});
+		});
 
-    settlements.forEach((s) => {
-      if (s.numbers.includes(dice)) {
-        s.resources.forEach((r) => {
-          collected[r] += 1;
-        });
-      }
-    });
+		return collected;
+	};
 
-    return collected;
-  };
+	const computeInitialResources = () => {
+		const collected: Record<Resource, number> = {
+			Wood: 0,
+			Brick: 0,
+			Sheep: 0,
+			Wheat: 0,
+			Rock: 0,
+		};
+		settlements.forEach((s) => {
+			s.hexes.forEach((h) => {
+				collected[h.resource] += s.multiplier;
+			});
+		});
+		return collected;
+	};
 
-  const results = getResults();
+	const handleDiceRoll = (n: number) => {
+		setDice(n);
+		setDiceHistory((prev) => [...prev, n]);
+	};
 
-  return (
-    <div className="p-6 max-w-md mx-auto font-sans">
-      <h1 className="text-2xl font-bold mb-6 text-center">Catan Helper</h1>
+	useEffect(() => {
+		if (settlements.length === 2 && !initialPopupShown) {
+			const resources = computeInitialResources();
+			setInitialResources(resources);
+			setShowInitialModal(true);
+			setInitialPopupShown(true);
+		}
+	}, [settlements, initialPopupShown]);
 
-      {/* Toggle Builder */}
-      <button
-        onClick={() => setShowBuilder((prev) => !prev)}
-        className="mb-4 text-sm text-gray-600 hover:text-gray-900 underline"
-      >
-        {showBuilder ? "Hide Settlement Builder" : "Show Settlement Builder"}
-      </button>
+	const results = getResults();
 
-      {/* Settlement builder */}
-      {showBuilder && (
-        <div className="mb-6 bg-gray-100 rounded-xl p-4">
-          <h2 className="font-semibold mb-3 text-gray-800">Add Settlement</h2>
+	return (
+		<div className="p-4 max-w-lg mx-auto font-sans relative">
+			<h1 className="text-2xl font-bold mb-4 text-center">Catan Helper</h1>
+			<div className="mb-6 text-center">
+				<button onClick={() => setShowStats(true)} className="px-4 py-2 bg-green-200 text-green-900 rounded-lg font-medium">
+					Stats
+				</button>
+			</div>
+			<SettlementBuilder settlements={settlements} setSettlements={setSettlements} />
+			<SettlementsList settlements={settlements} removeSettlement={removeSettlement} toggleUpgrade={toggleUpgrade} />
+			<RobberPosition settlements={settlements} showRobber={showRobber} setShowRobber={setShowRobber} robberHex={robberHex} setRobberHex={setRobberHex} />
 
-          {/* Numbers */}
-          <p className="text-sm mb-1 text-gray-600">Numbers:</p>
-          <div className="grid grid-cols-6 gap-2 mb-3">
-            {Array.from({ length: 11 }, (_, i) => i + 2).map((n) => (
-              <button
-                key={n}
-                onClick={() => toggleNumber(n)}
-                className={`px-2 py-1 rounded-lg text-sm border transition ${
-                  selectedNumbers.includes(n)
-                    ? "bg-blue-500 text-white"
-                    : "bg-gray-50 hover:bg-gray-100"
-                }`}
-              >
-                {n}
-              </button>
-            ))}
-          </div>
+			{/* Dice buttons */}
+			<div className="mb-6">
+				<h2 className="font-semibold text-gray-800 text-lg">Dice Roll</h2>
+				<div className="grid grid-cols-5 sm:grid-cols-6 gap-2 mt-3">
+					{Array.from({ length: 11 }, (_, i) => i + 2)
+						.filter((n) => n !== 7)
+						.map((n) => (
+							<button key={n} onClick={() => handleDiceRoll(n)} className={`px-4 py-3 rounded-lg border text-base ${dice === n ? 'bg-blue-200 text-blue-900' : 'bg-gray-50'}`}>
+								{n}
+							</button>
+						))}
+				</div>
+			</div>
 
-          {/* Resources */}
-          <p className="text-sm mb-1 text-gray-600">Resources:</p>
-          <div className="flex gap-2 mb-4 flex-wrap">
-            {["Wood", "Brick", "Sheep", "Wheat", "Ore"].map((r) => (
-              <button
-                key={r}
-                onClick={() => toggleResource(r as Resource)}
-                className={`px-3 py-1 rounded-lg text-sm border transition ${
-                  selectedResources.includes(r as Resource)
-                    ? "bg-green-500 text-white"
-                    : "bg-gray-50 hover:bg-gray-100"
-                }`}
-              >
-                {r}
-              </button>
-            ))}
-          </div>
+			{/* Results */}
+			{dice && (
+				<div className="bg-gray-100 mb-4 p-4 rounded-xl">
+					<h2 className="font-semibold mb-2 text-gray-800 text-lg">You Collect:</h2>
+					{(Object.entries(results) as [string, number][]).filter(([, c]) => c > 0).length === 0 ? (
+						<p className="text-base text-gray-600">No resources.</p>
+					) : (
+						<ul className="space-y-2 text-base text-gray-700">
+							{(Object.entries(results) as [string, number][])
+								.filter(([, c]) => c > 0)
+								.map(([res, c]) => (
+									<li key={res}>
+										<span className="font-medium">{c} x</span> {res}
+									</li>
+								))}
+						</ul>
+					)}
+				</div>
+			)}
 
-          <button
-            onClick={addSettlement}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg w-full text-sm font-medium hover:bg-blue-700 transition"
-          >
-            Save Settlement
-          </button>
-        </div>
-      )}
-
-      {/* Your settlements */}
-      {settlements.length > 0 && (
-        <div className="mb-6">
-          <h2 className="font-semibold mb-2 text-gray-800">Your Settlements</h2>
-          <ul className="space-y-1 text-sm text-gray-700 max-h-32 overflow-y-auto">
-            {settlements.map((s) => (
-              <li
-                key={s.id}
-                className="bg-gray-50 px-3 py-1 rounded-md border text-gray-800"
-              >
-                <span className="font-medium">{s.numbers.join(", ")}</span> →{" "}
-                {s.resources.join(", ")}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {/* Dice buttons */}
-      <div className="mb-6">
-        <h2 className="font-semibold text-gray-800">Dice Roll</h2>
-        <div className="grid grid-cols-6 gap-2 mt-3">
-          {Array.from({ length: 11 }, (_, i) => i + 2).map((n) => (
-            <button
-              key={n}
-              onClick={() => setDice(n)}
-              className={`px-3 py-2 rounded-lg border transition text-sm ${
-                dice === n
-                  ? "bg-red-500 text-white"
-                  : "bg-gray-50 hover:bg-gray-100"
-              }`}
-            >
-              {n}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Results */}
-      {dice && (
-        <div className="bg-gray-50 border p-4 rounded-xl">
-          <h2 className="font-semibold mb-2 text-gray-800">You Collect:</h2>
-          {Object.entries(results).filter(([, count]) => (count as number) > 0)
-            .length === 0 ? (
-            <p className="text-sm text-gray-600">No resources.</p>
-          ) : (
-            <ul className="space-y-1 text-sm text-gray-700">
-              {Object.entries(results)
-                .filter(([, count]) => (count as number) > 0)
-                .map(([res, count]) => (
-                  <li key={res}>
-                    <span className="font-medium">{count as number} x</span>{" "}
-                    {res}
-                  </li>
-                ))}
-            </ul>
-          )}
-        </div>
-      )}
-    </div>
-  );
+			{showStats && <StatsModal setShowStats={setShowStats} settlements={settlements} diceHistory={diceHistory} />}
+			{showInitialModal && <InitialResourcesModal initialResources={initialResources} setShowInitialModal={setShowInitialModal} />}
+		</div>
+	);
 }

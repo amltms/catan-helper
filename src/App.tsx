@@ -6,6 +6,9 @@ import SettlementBuilder from './components/SettlementBuilder';
 import RobberPosition from './components/RobberPosition';
 import InitialResourcesModal from './components/InitialResourcesModal';
 import StatsModal from './components/StatsModal';
+import DiceButtons from './components/DiceButtons';
+import DiceRolls from './components/DiceRolls';
+import SettlementsDrawer from './components/SettlementsDrawer';
 
 export default function App() {
 	const [settlements, setSettlements] = useState<Settlement[]>([]);
@@ -80,6 +83,7 @@ export default function App() {
 			setShowInitialModal(true);
 			setInitialPopupShown(true);
 		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [settlements, initialPopupShown]);
 
 	const results = getResults();
@@ -93,43 +97,14 @@ export default function App() {
 				</button>
 			</div>
 			<SettlementBuilder settlements={settlements} setSettlements={setSettlements} />
+			<SettlementsDrawer settlements={settlements} removeSettlement={removeSettlement} toggleUpgrade={toggleUpgrade} />
 			<SettlementsList settlements={settlements} removeSettlement={removeSettlement} toggleUpgrade={toggleUpgrade} />
 			<RobberPosition settlements={settlements} showRobber={showRobber} setShowRobber={setShowRobber} robberHex={robberHex} setRobberHex={setRobberHex} />
-
-			{/* Dice buttons */}
 			<div className="mb-6">
 				<h2 className="font-semibold text-gray-800 text-lg">Dice Roll</h2>
-				<div className="grid grid-cols-5 sm:grid-cols-6 gap-2 mt-3">
-					{Array.from({ length: 11 }, (_, i) => i + 2)
-						.filter((n) => n !== 7)
-						.map((n) => (
-							<button key={n} onClick={() => handleDiceRoll(n)} className={`px-4 py-3 rounded-lg border text-base ${dice === n ? 'bg-blue-200 text-blue-900' : 'bg-gray-50'}`}>
-								{n}
-							</button>
-						))}
-				</div>
+				<DiceButtons action={handleDiceRoll} selectedNumber={dice ?? 0} />
 			</div>
-
-			{/* Results */}
-			{dice && (
-				<div className="bg-gray-100 mb-4 p-4 rounded-xl">
-					<h2 className="font-semibold mb-2 text-gray-800 text-lg">You Collect:</h2>
-					{(Object.entries(results) as [string, number][]).filter(([, c]) => c > 0).length === 0 ? (
-						<p className="text-base text-gray-600">No resources.</p>
-					) : (
-						<ul className="space-y-2 text-base text-gray-700">
-							{(Object.entries(results) as [string, number][])
-								.filter(([, c]) => c > 0)
-								.map(([res, c]) => (
-									<li key={res}>
-										<span className="font-medium">{c} x</span> {res}
-									</li>
-								))}
-						</ul>
-					)}
-				</div>
-			)}
-
+			{dice && <DiceRolls results={results} />}
 			{showStats && <StatsModal setShowStats={setShowStats} settlements={settlements} diceHistory={diceHistory} />}
 			{showInitialModal && <InitialResourcesModal initialResources={initialResources} setShowInitialModal={setShowInitialModal} />}
 		</div>

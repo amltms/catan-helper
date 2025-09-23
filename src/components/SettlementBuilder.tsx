@@ -2,6 +2,7 @@ import { HiChevronDown } from 'react-icons/hi2';
 import { useState } from 'react';
 import type { Hex, Resource, Settlement } from '../types';
 import { resourceStyles } from '../constants';
+import DiceButtons from './DiceButtons';
 
 type Props = {
 	settlements: Settlement[];
@@ -42,19 +43,7 @@ export default function SettlementBuilder({ settlements, setSettlements }: Props
 				<>
 					{/* Numbers */}
 					<p className="text-sm mt-3 mb-1 text-gray-600">Pick a Number:</p>
-					<div className="grid grid-cols-5 sm:grid-cols-6 gap-2 mb-3">
-						{Array.from({ length: 11 }, (_, i) => i + 2)
-							.filter((n) => n !== 7)
-							.map((n) => (
-								<button
-									key={n}
-									onClick={() => setSelectedNumber(n)}
-									className={`px-3 py-2 rounded-lg text-base border ${selectedNumber === n ? 'bg-blue-200 text-blue-900' : 'bg-gray-50'}`}
-								>
-									{n}
-								</button>
-							))}
-					</div>
+					<DiceButtons action={setSelectedNumber} selectedNumber={selectedNumber ?? 0} />
 
 					{/* Resources */}
 					<p className="text-sm mb-1 text-gray-600">Pick a Resource:</p>
